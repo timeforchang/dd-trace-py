@@ -570,6 +570,98 @@ def test_telemetry_writer_agent_setup():
         assert new_telemetry_writer._agentless is False
 
 
+def test_identity_refresh_rebuilds_native_worker():
+    """Same rebuild as after a fork: the native worker bakes in get_runtime_id() at construction."""
+    with override_global_config(
+        {"_dd_site": "datad0g.com", "_dd_api_key": "foobarkey", "_ci_visibility_agentless_enabled": False}
+    ):
+        writer = ddtrace.internal.telemetry.TelemetryWriter(agentless=False)
+        assert writer._worker is not None
+
+        writer._on_identity_refresh("some-new-runtime-id")
+
+        assert writer._worker is None
+        assert writer.started is False
+
+
+def test_identity_refresh_stops_live_worker_before_dropping():
+    """Unlike after a fork, the worker is still alive here and must be explicitly stopped, or it
+    keeps heartbeating with the stale runtime ID until process shutdown.
+    """
+    with override_global_config(
+        {"_dd_site": "datad0g.com", "_dd_api_key": "foobarkey", "_ci_visibility_agentless_enabled": False}
+    ):
+        writer = ddtrace.internal.telemetry.TelemetryWriter(agentless=False)
+        assert writer._worker is not None
+
+        # TelemetryWorker is a native extension type -- its methods can't be patched in place,
+        # so swap in a mock to observe the stop() call instead.
+        fake_worker = mock.Mock()
+        writer._worker = fake_worker
+
+        writer._on_identity_refresh("some-new-runtime-id")
+
+        fake_worker.stop.assert_called_once_with(send_app_closing=False)
+        assert writer._worker is None
+
+
+@pytest.mark.subprocess(
+    env={"DD_SITE": "datad0g.com", "DD_API_KEY": "foobarkey", "DD_CIVISIBILITY_AGENTLESS_ENABLED": "false"}
+)
+def test_identity_refresh_wired_to_runtime_id_change():
+    """Drives the refresh through runtime.refresh_identity() instead of calling
+    _on_identity_refresh directly (as the test above does), so a dropped
+    on_runtime_id_change() subscription would actually fail this.
+    """
+    from ddtrace.internal import runtime
+    import ddtrace.internal.telemetry
+
+    writer = ddtrace.internal.telemetry.TelemetryWriter(agentless=False)
+    assert writer._worker is not None
+
+    runtime.refresh_identity()
+
+    assert writer._worker is None
+    assert writer.started is False
+
+
+@pytest.mark.subprocess(
+    env={"DD_SITE": "datad0g.com", "DD_API_KEY": "foobarkey", "DD_CIVISIBILITY_AGENTLESS_ENABLED": "false"}
+)
+def test_identity_refresh_not_wired_to_fork():
+    import os
+    from unittest import mock
+
+    import ddtrace.internal.telemetry
+
+    writer = ddtrace.internal.telemetry.TelemetryWriter(agentless=False)
+    fake_worker = mock.Mock()
+    writer._worker = fake_worker
+
+    child = os.fork()
+    if child == 0:
+        fake_worker.stop.assert_not_called()
+        assert writer._worker is None
+        os._exit(42)
+
+    _, status = os.waitpid(child, 0)
+    assert os.WEXITSTATUS(status) == 42
+
+
+def test_identity_refresh_rebuilt_worker_reports_new_runtime_id(telemetry_writer, test_agent_session, mock_time):
+    from ddtrace.internal import runtime
+
+    telemetry_writer.periodic(force_flush=True)
+    test_agent_session.clear()
+
+    runtime.refresh_identity()
+    telemetry_writer.periodic(force_flush=True)
+
+    events = test_agent_session.get_events("app-started")
+    assert len(events) == 1
+    validate_request_body(events[0], None, "app-started")
+
+
 @pytest.mark.parametrize(
     "env_agentless,arg_agentless",
     [

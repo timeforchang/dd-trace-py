@@ -7,6 +7,7 @@ from typing import Any
 from typing import Callable
 from typing import Optional
 from typing import Union
+import weakref
 
 from ddtrace.internal.endpoints import HttpEndPoint
 from ddtrace.internal.endpoints import endpoint_collection
@@ -22,6 +23,7 @@ from ..periodic import PeriodicService
 from ..runtime import get_ancestor_runtime_id
 from ..runtime import get_parent_runtime_id
 from ..runtime import get_runtime_id
+from ..runtime import on_runtime_id_change
 from ..utils.formats import get_test_session_token
 from ..utils.version import version as tracer_version
 from .constants import TELEMETRY_APM_PRODUCT
@@ -183,6 +185,8 @@ class TelemetryWriter:
         self._payload_file_dir: Optional[str] = None
         self._test_session_token: Optional[str] = get_test_session_token()
         self.started = False
+        self._runtime_id_change_enabled = False
+        self._runtime_id_change_fork_generation = forksafe.get_generation()
 
         # Product enablement is tracked so the version can be passed alongside each change.
         self._product_versions: dict[str, str] = {product.value: tracer_version for product in TELEMETRY_APM_PRODUCT}
@@ -203,6 +207,23 @@ class TelemetryWriter:
             # runtime's after_fork_child hook, which get_native_runtime() registered
             # during enable(), so the shared runtime is restarted before we rebuild).
             forksafe.register(self._fork_writer)
+            self._runtime_id_change_enabled = True
+            writer_ref = weakref.ref(self)
+
+            # Runtime keeps callbacks in a module-level set, so avoid registering a bound method.
+            # The first callback in a new fork generation is the runtime fork hook; fork handling
+            # uses _fork_writer instead, so skip this identity-refresh path for that callback.
+            def _on_identity_refresh(new_runtime_id: str) -> None:
+                writer = writer_ref()
+                if writer is None or not writer._runtime_id_change_enabled:
+                    return
+                fork_generation = forksafe.get_generation()
+                if writer._runtime_id_change_fork_generation != fork_generation:
+                    writer._runtime_id_change_fork_generation = fork_generation
+                    return
+                writer._on_identity_refresh(new_runtime_id)
+
+            on_runtime_id_change(_on_identity_refresh)
             get_logger("ddtrace").addHandler(DDTelemetryErrorHandler(self))
 
     def _build_worker(self) -> "TelemetryWorker":
@@ -366,6 +387,7 @@ class TelemetryWriter:
         Once disabled, telemetry collection can not be re-enabled.
         """
         self._enabled = False
+        self._runtime_id_change_enabled = False
         if endpoint_collection.on_endpoint_registered == self._record_endpoint:
             endpoint_collection.on_endpoint_registered = None
         if self._deps_collector is not None:
@@ -914,6 +936,18 @@ class TelemetryWriter:
         self._notify_worker_changed(None)
         # Re-discover dependencies from scratch so the child reports its own imports.
         self._dependency_tracker.reset()
+
+    def _on_identity_refresh(self, new_runtime_id: str) -> None:
+        # Same rebuild as _fork_writer(): the native worker bakes in get_runtime_id() at
+        # construction, so it must be dropped and lazily rebuilt on the next telemetry call.
+        # Unlike after a fork, the worker is still alive here -- it must be stopped (not just
+        # dropped) or it keeps heartbeating with the stale runtime ID until process shutdown.
+        if self._worker is not None:
+            try:
+                self._worker.stop(send_app_closing=False)
+            except Exception:
+                log.debug("Failed to stop the native telemetry worker during identity refresh", exc_info=True)
+        self._fork_writer()
 
     def _telemetry_excepthook(self, tp, value, root_traceback) -> None:
         if root_traceback is not None:
