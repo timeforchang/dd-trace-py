@@ -12,7 +12,9 @@ from typing import Optional
 from typing import Sequence
 from typing import TextIO
 from urllib.parse import urlparse as _urlparse
+import weakref
 
+from ddtrace.internal import forksafe
 from ddtrace.internal.dist_computing.utils import in_ray_job
 from ddtrace.internal.hostname import get_hostname
 import ddtrace.internal.native as native
@@ -20,6 +22,7 @@ from ddtrace.internal.native import AgentResponse
 from ddtrace.internal.native._native import SpanData
 from ddtrace.internal.native_runtime import get_native_runtime
 from ddtrace.internal.runtime import get_runtime_id
+from ddtrace.internal.runtime import on_runtime_id_change
 from ddtrace.internal.settings import env
 from ddtrace.internal.settings._agent import config as agent_config
 from ddtrace.internal.settings._config import config
@@ -815,6 +818,26 @@ class NativeWriter(periodic.PeriodicService, TraceWriter, AgentWriterInterface):
         self._stats_opt_out = stats_opt_out
 
         self._exporter = self._create_exporter()
+        self._runtime_id_change_enabled = True
+        self._runtime_id_change_fork_generation = forksafe.get_generation()
+
+        writer_ref = weakref.ref(self)
+
+        # Runtime keeps callbacks in a module-level set, so registering a bound method
+        # would keep this writer alive after callers drop their reference. The first
+        # callback in a new fork generation is the runtime fork hook; skip that one so
+        # fork handling does not rebuild the native exporter.
+        def _on_identity_refresh(new_runtime_id: str) -> None:
+            writer = writer_ref()
+            if writer is None or not writer._runtime_id_change_enabled:
+                return
+            fork_generation = forksafe.get_generation()
+            if writer._runtime_id_change_fork_generation != fork_generation:
+                writer._runtime_id_change_fork_generation = fork_generation
+                return
+            writer._on_identity_refresh(new_runtime_id)
+
+        on_runtime_id_change(_on_identity_refresh)
 
     @staticmethod
     def _parse_otlp_headers(raw: str) -> list:
@@ -925,8 +948,22 @@ class NativeWriter(periodic.PeriodicService, TraceWriter, AgentWriterInterface):
 
     def shutdown_exporter(self) -> None:
         """Tear down the native exporter without going through ``stop()``."""
+        self._runtime_id_change_enabled = False
         try:
             self._exporter.shutdown(3_000_000_000)
+        except Exception:
+            _safelog(log.warning, "failed to shutdown exporter", exc_info=True)
+
+    def _on_identity_refresh(self, new_runtime_id: str) -> None:
+        # Rebuild the exporter so it picks up the new runtime_id (baked in at construction
+        # via enable_telemetry()), without touching the span buffer: unlike a fork, no spans
+        # were lost, so anything already buffered should still flush once the new exporter's
+        # connection is up. Modeled on set_test_session_token(), not recreate()/fork, which
+        # replace the whole writer and drop the buffer.
+        old_exporter = self._exporter
+        self._exporter = self._create_exporter()
+        try:
+            old_exporter.shutdown(3_000_000_000)
         except Exception:
             _safelog(log.warning, "failed to shutdown exporter", exc_info=True)
 
@@ -1174,6 +1211,7 @@ class NativeWriter(periodic.PeriodicService, TraceWriter, AgentWriterInterface):
         try:
             self.periodic()
         finally:
+            self._runtime_id_change_enabled = False
             self._exporter.shutdown(3_000_000_000)  # 3 seconds timeout
 
 

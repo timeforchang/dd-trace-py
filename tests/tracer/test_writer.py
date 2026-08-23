@@ -419,6 +419,20 @@ class NativeWriterTests(BaseTestCase):
         # Call shutdown without ever calling start()
         writer.on_shutdown()
 
+    def test_identity_refresh_rebuilds_exporter_without_recreating_writer(self):
+        """Same trigger as an AWS Lambda MicroVM /run hook: rebuild the exporter (it bakes in
+        get_runtime_id() at construction) without touching the writer/buffer, unlike recreate()
+        (used on fork), which replaces the whole writer and drops anything already written.
+        """
+        writer = NativeWriter("http://dne:1234")
+        old_exporter = writer._exporter
+        old_clients = writer._clients
+
+        writer._on_identity_refresh("some-new-runtime-id")
+
+        assert writer._exporter is not old_exporter
+        assert writer._clients is old_clients
+
     # Http related metrics are sent by the native code
     def test_drop_reason_bad_endpoint(self):
         pytest.skip()
@@ -426,6 +440,76 @@ class NativeWriterTests(BaseTestCase):
     # The NativeWriter does not support gzip compression
     def test_gzip_compression_exception_logging_and_metrics(self):
         pytest.skip()
+
+
+@pytest.mark.subprocess
+def test_native_writer_identity_refresh_wired_to_runtime_id_change():
+    """Drives the refresh through runtime.refresh_identity() instead of calling
+    _on_identity_refresh directly (as the test above does), so a dropped
+    on_runtime_id_change() subscription would actually fail this.
+    """
+    from ddtrace.internal import runtime
+    from ddtrace.internal.writer import NativeWriter
+
+    writer = NativeWriter("http://dne:1234")
+    old_exporter = writer._exporter
+    old_clients = writer._clients
+
+    runtime.refresh_identity()
+
+    assert writer._exporter is not old_exporter
+    assert writer._clients is old_clients
+
+
+@pytest.mark.subprocess(env={"PYTHONWARNINGS": "ignore::DeprecationWarning"})
+def test_native_writer_identity_refresh_not_wired_to_fork():
+    import os
+
+    from ddtrace.internal import runtime
+    from ddtrace.internal.writer import NativeWriter
+
+    writer = NativeWriter("http://dne:1234")
+    old_exporter = writer._exporter
+
+    child = os.fork()
+    if child == 0:
+        assert writer._exporter is old_exporter
+        runtime.refresh_identity()
+        assert writer._exporter is not old_exporter
+        os._exit(42)
+
+    _, status = os.waitpid(child, 0)
+    assert os.WEXITSTATUS(status) == 42
+
+
+@pytest.mark.subprocess
+def test_native_writer_shutdown_ignores_runtime_id_change():
+    from ddtrace.internal import runtime
+    from ddtrace.internal.writer import NativeWriter
+
+    writer = NativeWriter("http://dne:1234")
+    old_exporter = writer._exporter
+
+    writer.shutdown_exporter()
+    runtime.refresh_identity()
+
+    assert writer._exporter is old_exporter
+
+
+@pytest.mark.subprocess
+def test_native_writer_identity_refresh_callback_does_not_keep_writer_alive():
+    import gc
+    import weakref
+
+    from ddtrace.internal.writer import NativeWriter
+
+    writer = NativeWriter("http://dne:1234")
+    writer_ref = weakref.ref(writer)
+
+    del writer
+    gc.collect()
+
+    assert writer_ref() is None
 
 
 class CIVisibilityWriterTests(NativeWriterTests):
