@@ -1,9 +1,11 @@
 import itertools
 from typing import ClassVar  # noqa:F401
 from typing import Optional  # noqa:F401
+import weakref
 
 from ddtrace.internal import atexit
 from ddtrace.internal.constants import EXPERIMENTAL_FEATURES
+from ddtrace.internal.runtime import on_runtime_id_change
 from ddtrace.internal.settings._agent import config as agent_config
 from ddtrace.internal.settings._config import config
 from ddtrace.internal.threads import Lock
@@ -87,17 +89,27 @@ class RuntimeWorker(periodic.PeriodicService):
         self.dogstatsd_url: Optional[str] = dogstatsd_url
         self._dogstatsd_client: DogStatsd = get_dogstatsd_client(self.dogstatsd_url or agent_config.dogstatsd_url)
         self._runtime_metrics: RuntimeMetrics = RuntimeMetrics()
+        # Runtime callbacks cannot be unregistered, so disable stale callbacks after worker shutdown.
+        self._runtime_id_change_enabled = False
         if EXPERIMENTAL_FEATURES.RUNTIME_METRICS in config._experimental_features_enabled:
             # Enables sending runtime metrics as gauges (instead of distributions with a new metric name)
             self.send_metric = self._dogstatsd_client.gauge
         else:
             self.send_metric = self._dogstatsd_client.distribution
 
+        self._platform_tags = self._build_platform_tags()
         if config._runtime_metrics_runtime_id_enabled:
-            # Enables tagging runtime metrics with runtime-id (as well as all the v1 tags)
-            self._platform_tags = self._format_tags(PlatformTagsV2())
-        else:
-            self._platform_tags = self._format_tags(PlatformTags())
+            self._runtime_id_change_enabled = True
+            worker_ref = weakref.ref(self)
+
+            # Refresh cached platform tags when the runtime ID changes.
+            def _on_identity_refresh(new_runtime_id: str) -> None:
+                worker = worker_ref()
+                if worker is None or not worker._runtime_id_change_enabled:
+                    return
+                worker._on_identity_refresh(new_runtime_id)
+
+            on_runtime_id_change(_on_identity_refresh)
 
         self._process_tags: list[str] = list(ProcessTags())
         # Only dd.internal.entity_id needs preserving here: service/env/version are already
@@ -108,12 +120,27 @@ class RuntimeWorker(periodic.PeriodicService):
             tag for tag in (self._dogstatsd_client.constant_tags or []) if tag.startswith(entity_id_prefix)
         ]
 
+    def _build_platform_tags(self) -> list[str]:
+        if config._runtime_metrics_runtime_id_enabled:
+            # Enables tagging runtime metrics with runtime-id (as well as all the v1 tags)
+            return self._format_tags(PlatformTagsV2())
+        return self._format_tags(PlatformTags())
+
+    def _on_identity_refresh(self, _new_runtime_id: str) -> None:
+        # Runtime metrics must keep runtime-id tags current after identity refreshes, but tag collection
+        # is best-effort here so one failing collector does not break the runtime refresh callback loop.
+        try:
+            self._platform_tags = self._build_platform_tags()
+        except Exception:
+            log.debug("Failed to rebuild runtime metric platform tags after identity refresh", exc_info=True)
+
     @classmethod
     def disable(cls) -> None:
         with cls._lock:
             if cls._instance is None:
                 return
 
+            cls._instance._runtime_id_change_enabled = False
             cls._instance.stop()
             # DEV: Use timeout to avoid locking on shutdown. This seems to be
             # required on some occasions by Python 2.7. Deadlocks seem to happen

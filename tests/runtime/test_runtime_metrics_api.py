@@ -232,6 +232,83 @@ def test_runtime_metrics_experimental_runtime_tag():
         )
 
 
+@pytest.mark.subprocess(env={"DD_RUNTIME_METRICS_RUNTIME_ID_ENABLED": "true"}, err=None)
+def test_runtime_metrics_runtime_id_tag_refreshes_on_identity_refresh():
+    from ddtrace.internal import runtime
+    from ddtrace.internal.runtime.runtime_metrics import RuntimeWorker
+
+    try:
+        RuntimeWorker.enable()
+        assert RuntimeWorker._instance is not None
+
+        worker_instance = RuntimeWorker._instance
+        runtime_id_tag = f"runtime-id:{runtime.get_runtime_id()}"
+        assert runtime_id_tag in worker_instance._platform_tags, worker_instance._platform_tags
+
+        runtime.refresh_identity()
+
+        refreshed_runtime_id_tag = f"runtime-id:{runtime.get_runtime_id()}"
+        assert refreshed_runtime_id_tag in worker_instance._platform_tags, worker_instance._platform_tags
+        assert runtime_id_tag not in worker_instance._platform_tags, worker_instance._platform_tags
+    finally:
+        RuntimeWorker.disable()
+
+
+@pytest.mark.subprocess(env={"DD_RUNTIME_METRICS_RUNTIME_ID_ENABLED": "true"}, err=None)
+def test_runtime_metrics_disabled_worker_ignores_identity_refresh():
+    from unittest import mock
+
+    from ddtrace.internal import runtime
+    from ddtrace.internal.runtime.runtime_metrics import RuntimeWorker
+
+    try:
+        RuntimeWorker.enable()
+        assert RuntimeWorker._instance is not None
+        worker_instance = RuntimeWorker._instance
+        worker_instance._build_platform_tags = mock.Mock(side_effect=AssertionError("stale callback ran"))
+        RuntimeWorker.disable()
+
+        runtime.refresh_identity()
+
+        worker_instance._build_platform_tags.assert_not_called()
+    finally:
+        RuntimeWorker.disable()
+
+
+@pytest.mark.subprocess(env={"DD_RUNTIME_METRICS_RUNTIME_ID_ENABLED": "true"}, err=None)
+def test_runtime_metrics_identity_refresh_callback_does_not_keep_worker_alive():
+    import gc
+    import weakref
+
+    from ddtrace.internal import runtime
+    from ddtrace.internal.runtime.runtime_metrics import RuntimeWorker
+
+    worker_instance = RuntimeWorker()
+    worker_ref = weakref.ref(worker_instance)
+    del worker_instance
+    gc.collect()
+
+    runtime.refresh_identity()
+
+    assert worker_ref() is None
+
+
+@pytest.mark.subprocess(env={"DD_RUNTIME_METRICS_RUNTIME_ID_ENABLED": "true"}, err=None)
+def test_runtime_metrics_identity_refresh_tag_rebuild_errors_are_best_effort():
+    from unittest import mock
+
+    from ddtrace.internal import runtime
+    from ddtrace.internal.runtime.runtime_metrics import RuntimeWorker
+
+    worker_instance = RuntimeWorker()
+    platform_tags = worker_instance._platform_tags
+    worker_instance._build_platform_tags = mock.Mock(side_effect=RuntimeError("tag collection failed"))
+
+    runtime.refresh_identity()
+
+    assert worker_instance._platform_tags is platform_tags
+
+
 @pytest.mark.subprocess(
     parametrize={"DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED": ["DD_RUNTIME_METRICS_ENABLED,someotherfeature", ""]},
     err=None,
