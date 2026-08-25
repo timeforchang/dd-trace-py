@@ -1016,6 +1016,55 @@ def test_flush_sample_never_passes_zero_to_push_monotonic_ns() -> None:
         assert ts == 0, f"Expected 0 to be passed through to push_monotonic_ns (guard is in C++), got {ts}"
 
 
+def test_flush_sample_reentrancy_guard() -> None:
+    """Regression test for the per-thread reentrancy guard on _flush_sample."""
+    import _thread
+    import threading
+    import time
+
+    import mock
+
+    from ddtrace.profiling import collector
+    import ddtrace.profiling.collector._lock as _lock_module
+    from tests.profiling.collector.test_utils import init_ddup
+
+    init_ddup("test_flush_sample_reentrancy_guard")
+
+    real_lock: threading.Lock = threading.Lock()
+    capture_sampler = collector.CaptureSampler(capture_pct=100)
+    profiled_lock: _ProfiledLock = _ProfiledLock(
+        wrapped=real_lock,
+        tracer=None,
+        capture_sampler=capture_sampler,
+    )
+    profiled_lock.name = "test_lock"
+
+    tid: int = _thread.get_ident()
+    initial_guard_state: set[int] = set(_lock_module._FLUSH_SAMPLE_ACTIVE_THREADS)
+    assert tid not in initial_guard_state, "Guard set must be clean at test start"
+
+    _lock_module._FLUSH_SAMPLE_ACTIVE_THREADS.add(tid)
+    try:
+        with mock.patch.object(_lock_module, "ddup") as mock_ddup:
+            mock_ddup.SampleHandle.return_value = mock.MagicMock()
+            profiled_lock._flush_sample(time.monotonic_ns(), time.monotonic_ns(), True)
+            assert not mock_ddup.SampleHandle.called, (
+                "Reentrant _flush_sample must not build a sample when the current "
+                "thread is already inside _flush_sample"
+            )
+    finally:
+        _lock_module._FLUSH_SAMPLE_ACTIVE_THREADS.discard(tid)
+
+    with mock.patch.object(_lock_module, "ddup") as mock_ddup:
+        mock_ddup.SampleHandle.return_value = mock.MagicMock()
+        profiled_lock._flush_sample(time.monotonic_ns(), time.monotonic_ns(), True)
+        assert mock_ddup.SampleHandle.called, "_flush_sample must run normally once the guard is cleared"
+
+    assert tid not in _lock_module._FLUSH_SAMPLE_ACTIVE_THREADS, (
+        "_flush_sample must always clear its per-thread guard on exit"
+    )
+
+
 def test_semaphore_and_bounded_semaphore_collectors_coexist() -> None:
     """Test that Semaphore and BoundedSemaphore collectors can run simultaneously.
 

@@ -59,6 +59,9 @@ _ALWAYS_EXCLUDED_MODULES: frozenset = frozenset({
 # are invisible, so the caller's frame is at index 0, not 3.
 cdef int _CALLER_FRAME_INDEX = 0
 
+# Per-thread reentrancy guard for _flush_sample.
+_FLUSH_SAMPLE_ACTIVE_THREADS: set[int] = set()
+
 
 cdef tuple _current_thread():
     thread_id: int = _thread.get_ident()
@@ -269,6 +272,13 @@ class _ProfiledLock:
     def _flush_sample(self, long long start, long long end, bint is_acquire) -> None:
         """Push lock profiling data to ddup."""
         cdef long long duration_ns = end - start
+
+        # Skip if we are already flushing a sample on this thread.
+        tid: int = _thread.get_ident()
+        if tid in _FLUSH_SAMPLE_ACTIVE_THREADS:
+            return
+        _FLUSH_SAMPLE_ACTIVE_THREADS.add(tid)
+
         try:
             handle: ddup.SampleHandle = ddup.SampleHandle()
 
@@ -312,6 +322,8 @@ class _ProfiledLock:
         except Exception:
             # Instrumentation must never crash user code
             pass  # nosec
+        finally:
+            _FLUSH_SAMPLE_ACTIVE_THREADS.discard(tid)
 
     def _find_name(self, var_dict: dict[str, Any]) -> Optional[str]:
         cdef str name
