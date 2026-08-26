@@ -170,10 +170,12 @@ class LineLocationMixin(ProbeLocationMixin):
     source_file: str = field(compare=False)
     line: int = field(compare=False)
     resolved_source_file: Optional[Path] = field(init=False, compare=False)
+    _injection_line: int = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         super().__post_init__()
         self.resolved_source_file = _resolve_source_file(self.source_file)
+        self._injection_line = self.line
 
     def location(self) -> tuple[Optional[str], int]:
         return (maybe_stringify(self.resolved_source_file), self.line)

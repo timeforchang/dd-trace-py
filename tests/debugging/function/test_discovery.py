@@ -104,6 +104,18 @@ def test_function_instance_method(stuff_discovery):
     assert cls.instancestuff is original_func
 
 
+def test_function_header(stuff_discovery):
+    ((function, injection_line),) = stuff_discovery.at_function_header(35)
+    assert function is stuff.Stuff.instancestuff
+    assert injection_line == 36
+
+    ((function, injection_line),) = stuff_discovery.at_function_header(28)
+    assert function is stuff.Stuff.staticstuff
+    assert injection_line == 29
+
+    assert stuff_discovery.at_function_header(36) == []
+
+
 def test_function_decorated_method(stuff_discovery):
     method = stuff.Stuff.decoratedstuff
     (original_func,) = stuff_discovery.at_line(48)
