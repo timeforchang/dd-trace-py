@@ -301,8 +301,6 @@ class FunctionDiscovery(defaultdict[Any, Any]):
             self[lineno].append(pair)
 
         # A function's first line is its declaration, or its first decorator.
-        # AIDEV-NOTE: Keep this as an interval rather than indexing every line so
-        # multiline signatures cannot cause memory usage to grow with source size.
         first_executable_line = min(executable_lines, default=code.co_firstlineno)
         self._function_header_index.append((code.co_firstlineno, first_executable_line, pair))
 
