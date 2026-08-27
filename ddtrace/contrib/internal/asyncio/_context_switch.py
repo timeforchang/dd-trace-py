@@ -5,7 +5,7 @@ asyncio scheduling points covered by this fallback:
 
 * Handle._run: its callback is temporarily wrapped to publish entry inside the
   Context run and exit after _run restores the loop's ambient Context.
-* uvloop task callbacks: scheduling wrappers publish entry and restore the loop's
+* uvloop callbacks: scheduling wrappers publish entry and restore the loop's
   ambient Context after each callback.
 * Eager task construction through the event loop or asyncio.eager_task_factory:
   the coroutine is instrumented to publish if its first step runs inline, before
