@@ -1,0 +1,4 @@
+---
+features:
+  - |
+    serverless: Adds support for detecting AWS Lambda MicroVM runtime invocation requests from ASGI and WSGI applications.
