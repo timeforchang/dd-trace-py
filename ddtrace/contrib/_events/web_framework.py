@@ -15,6 +15,7 @@ class WebFrameworkEvents(str, Enum):
     WEB_REQUEST = "web.request"
     WEB_REQUEST_STARTING = "web.request.starting"
 
+
 @dataclass
 class WebFrameworkRequestEvent(HttpRequestBaseEvent, TracingEvent):
     event_name = WebFrameworkEvents.WEB_REQUEST.value

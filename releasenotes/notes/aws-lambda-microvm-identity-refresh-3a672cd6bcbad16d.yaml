@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    wsgi,asgi: Adds support for refreshing stable identifiers, including the
+    runtime ID and Remote Config client ID, when applications start in AWS
+    Lambda MicroVM environments.
