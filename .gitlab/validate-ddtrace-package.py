@@ -6,8 +6,13 @@ Validates that all expected wheels and sdist are present with correct versions.
 Uses the packaging library to properly parse and validate filenames.
 
 Expected artifacts:
-  - 52 wheels: 6 Python versions × 8 base platforms + 4 versions × win_arm64
+  - one wheel per (Python tag, platform) pair below, plus win_arm64 for the tags that
+    have CPython builds for it
   - 1 sdist: source distribution
+
+A wheel that is not in the expected set fails the job. It used to be reported as a
+warning, which never affected the exit code, so cp315 wheels compiled against a
+3.15 beta ABI were published for 31 releases without any job going red.
 
 Usage:
     python3 validate-ddtrace-package.py [wheels_dir]
@@ -21,15 +26,35 @@ import os
 from pathlib import Path
 import sys
 
+from packaging.specifiers import SpecifierSet
 from packaging.utils import parse_sdist_filename
 from packaging.utils import parse_wheel_filename
 from packaging.version import InvalidVersion
 from packaging.version import Version
+import tomllib
+
+
+def python_tag_minor(python_tag: str) -> int:
+    """Minor version carried by a CPython wheel tag.
+
+    >>> python_tag_minor("cp314")
+    14
+    """
+    return int(python_tag[len("cp3") :])
 
 
 # Configuration
+#
+# PYTHON_TAGS is a literal rather than a set enumerated from pyproject.toml's
+# requires-python because that specifier is not reliably bounded: it read ">=3.7" and
+# ">=3.8" until 2026, and a future ">=3.9,<4.0" would enumerate to cp39..cp399. Instead,
+# check_python_tags_current() cross-checks this list against requires-python so that
+# leaving it behind fails the job rather than silently narrowing what gets validated.
 PYTHON_TAGS = ["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]
-WIN_ARM64_PYTHON_TAGS = ["cp311", "cp312", "cp313", "cp314"]
+# win_arm64 has no CPython builds before 3.11, matching the cp39-win_arm64 and
+# cp310-win_arm64 entries in cibw_skip in .github/workflows/build_deploy.yml.
+WIN_ARM64_MIN_MINOR = 11
+WIN_ARM64_PYTHON_TAGS = [t for t in PYTHON_TAGS if python_tag_minor(t) >= WIN_ARM64_MIN_MINOR]
 
 BASE_PLATFORMS = [
     "macosx_14_0_arm64",
@@ -42,6 +67,43 @@ BASE_PLATFORMS = [
     "win_amd64",
 ]
 SERVERLESS_PLATFORMS = [p for p in BASE_PLATFORMS if "linux" in p]
+
+
+def check_python_tags_current(repo_root: Path) -> list[str]:
+    """Cross-check PYTHON_TAGS against pyproject.toml's requires-python.
+
+    PYTHON_TAGS is what decides which wheels this script even looks for, so a list that
+    trails the interpreters we publish for shrinks the validation silently. That is how
+    cp315 wheels went unnoticed: the list stopped at cp314 while the build matrix had
+    moved on. Both directions of disagreement are reported.
+    """
+    pyproject = repo_root / "pyproject.toml"
+    if not pyproject.exists():
+        return [f"Cannot cross-check PYTHON_TAGS: {pyproject} not found"]
+
+    with pyproject.open("rb") as f:
+        requires_python = tomllib.load(f).get("project", {}).get("requires-python")
+    if not requires_python:
+        return ["Cannot cross-check PYTHON_TAGS: project.requires-python is unset in pyproject.toml"]
+
+    specifier = SpecifierSet(requires_python)
+    problems: list[str] = []
+
+    excluded = [t for t in PYTHON_TAGS if not specifier.contains(f"3.{python_tag_minor(t)}")]
+    if excluded:
+        problems.append(
+            f"PYTHON_TAGS expects wheels for {', '.join(excluded)}, but requires-python "
+            f"({requires_python}) does not support those interpreters"
+        )
+
+    next_minor = max(python_tag_minor(t) for t in PYTHON_TAGS) + 1
+    if specifier.contains(f"3.{next_minor}"):
+        problems.append(
+            f"requires-python ({requires_python}) supports 3.{next_minor}, but PYTHON_TAGS stops at "
+            f"cp3{next_minor - 1}; add cp3{next_minor} so its wheels are validated instead of ignored"
+        )
+
+    return problems
 
 
 def build_expected_set(version: str, args: argparse.Namespace) -> set[tuple[str, str, str, str]]:
@@ -175,13 +237,20 @@ def main(args: argparse.Namespace) -> None:
     print()
 
     errors: list[str] = []
-    warnings: list[str] = []
 
     # Phase 1: Environment Check
     print("[Phase 1] Environment Check")
     print(f"✓ PACKAGE_VERSION is set: {raw_package_version}")
     if package_version != raw_package_version:
         print(f"✓ Canonical form used for comparisons: {package_version}")
+
+    tag_problems = check_python_tags_current(Path(__file__).resolve().parents[1])
+    if tag_problems:
+        for problem in tag_problems:
+            print(f"✗ {problem}")
+        errors.extend(tag_problems)
+    else:
+        print(f"✓ PYTHON_TAGS agrees with requires-python: {', '.join(PYTHON_TAGS)}")
     print()
 
     # Phase 2: SDist Validation
@@ -216,7 +285,7 @@ def main(args: argparse.Namespace) -> None:
     print("[Phase 4] Building Expected Set")
     expected_set = build_expected_set(package_version, args)
     print(f"Expected {len(expected_set)} wheels:")
-    print(f"  - {len(PYTHON_TAGS)} Python versions (cp39-cp314)")
+    print(f"  - {len(PYTHON_TAGS)} Python versions ({PYTHON_TAGS[0]}-{PYTHON_TAGS[-1]})")
     print(f"  - {len(BASE_PLATFORMS)} base platforms")
     print(f"  - {len(WIN_ARM64_PYTHON_TAGS)} Python versions with win_arm64")
     print(f"  - {len(SERVERLESS_PLATFORMS)} platforms with ddtrace-serverless builds")
@@ -253,11 +322,12 @@ def main(args: argparse.Namespace) -> None:
     ]
 
     if unexpected_non_version:
-        print(f"⚠ Unexpected {len(unexpected_non_version)} wheel(s) (warnings only):")
+        unexpected_tags = sorted({py_tag for _, py_tag, _, _ in unexpected_non_version})
+        print(f"✗ Unexpected {len(unexpected_non_version)} wheel(s):")
         for version, py_tag, platform, flavor in sorted(unexpected_non_version):
             filename = reconstruct_wheel_filename(version, py_tag, platform, flavor)
             print(f"  - {filename}")
-        warnings.append(f"Unexpected wheels: {len(unexpected_non_version)}")
+        errors.append(f"Unexpected wheels: {len(unexpected_non_version)} ({', '.join(unexpected_tags)})")
 
     # Only print this if no errors in this phase
     if not missing_wheels and not version_mismatches and not unexpected_non_version:
@@ -276,11 +346,6 @@ def main(args: argparse.Namespace) -> None:
         print(f"  Wheels: {valid_count}")
         if sdist_ok:
             print("  SDist: 1")
-        if warnings:
-            print()
-            print("Warnings:")
-            for warning in warnings:
-                print(f"  - {warning}")
         print()
         print("=" * 70)
         sys.exit(0)
@@ -288,12 +353,6 @@ def main(args: argparse.Namespace) -> None:
         print(f"✗ FAILED - Found {len(errors)} error(s):")
         for i, error in enumerate(errors, 1):
             print(f"  {i}. {error}")
-
-        if warnings:
-            print()
-            print("Warnings:")
-            for warning in warnings:
-                print(f"  - {warning}")
 
         print()
         print("=" * 70)
