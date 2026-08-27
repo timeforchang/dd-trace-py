@@ -12,6 +12,7 @@ from ddtrace.contrib import trace_utils
 from ddtrace.contrib.internal.asgi.utils import bytes_to_str
 from ddtrace.contrib.internal.asgi.utils import extract_headers
 from ddtrace.contrib.internal.asgi.utils import guarantee_single_callable
+from ddtrace.contrib.internal.web import dispatch_web_request_starting
 from ddtrace.ext import SpanKind
 from ddtrace.ext import SpanTypes
 from ddtrace.ext import http
@@ -500,6 +501,10 @@ class TraceMiddleware:
             wrapped_recv = wrapped_receive if scope["type"] == "websocket" else receive
             try:
                 if not is_subapp:
+                    if scope["type"] == "http":
+                        method = scope.get("method")
+                        path = (scope.get("root_path") or "").rstrip("/") + (scope.get("path") or "")
+                        dispatch_web_request_starting(method, path)
                     core.dispatch("asgi.start_request", ("asgi",))
                 # Do not block right here. Wait for route to be resolved in starlette/patch.py
                 return await self.app(scope, wrapped_recv, wrapped_send)
