@@ -21,14 +21,14 @@ from typing import NamedTuple
 from typing import Optional
 import weakref
 
-from ddtrace.internal.compat import CURRENT_PY_VERSION
-from ddtrace.internal.compat import CURRENT_PY_VERSION_INFO
+from ddtrace.internal.compat import MAX_PY_VERSION
+from ddtrace.internal.compat import MAX_PY_VERSION_INFO
 from ddtrace.internal.logger import get_logger
 from ddtrace.internal.threads import Lock
 
 
-if sys.version_info < CURRENT_PY_VERSION_INFO:
-    raise ImportError("ddtrace.internal.monitoring requires Python %s+" % CURRENT_PY_VERSION)
+if sys.version_info < MAX_PY_VERSION_INFO:
+    raise ImportError("ddtrace.internal.monitoring requires Python %s+" % MAX_PY_VERSION)
 
 log = get_logger(__name__)
 

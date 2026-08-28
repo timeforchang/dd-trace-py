@@ -829,20 +829,20 @@ def _exec_lazy_init(f: FunctionType, module_globals: dict[str, t.Any]) -> None:
 
 
 def lazy(f: t.Callable[[], None]) -> None:
-    from ddtrace.internal.compat import CURRENT_PY_VERSION_INFO
+    from ddtrace.internal.compat import MAX_PY_VERSION_INFO
     from ddtrace.internal.compat import PYTHON_VERSION_INFO
 
     _globals = sys._getframe(1).f_globals
     _initialized = False
 
-    # TODO(py-315): replace CURRENT_PY_VERSION_INFO with NEXT_PY_VERSION after 3.15 GAs
-    if PYTHON_VERSION_INFO < CURRENT_PY_VERSION_INFO:
+    # TODO(py-315): replace MAX_PY_VERSION_INFO with NEXT_MAX_PY_VERSION after 3.15 GAs
+    if PYTHON_VERSION_INFO < MAX_PY_VERSION_INFO:
         LazyWrappingContext(t.cast(FunctionType, f)).wrap()
 
     def __getattr__(name: str) -> t.Any:
         nonlocal _initialized
-        # TODO(py-315): replace CURRENT_PY_VERSION_INFO with NEXT_PY_VERSION after 3.15 GAs
-        if PYTHON_VERSION_INFO >= CURRENT_PY_VERSION_INFO:
+        # TODO(py-315): replace MAX_PY_VERSION_INFO with NEXT_MAX_PY_VERSION after 3.15 GAs
+        if PYTHON_VERSION_INFO >= MAX_PY_VERSION_INFO:
             if not _initialized:
                 _exec_lazy_init(t.cast(FunctionType, f), _globals)
                 _initialized = True

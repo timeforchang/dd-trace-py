@@ -11,11 +11,11 @@ import wrapt
 
 __all__ = [
     "maybe_stringify",
-    "CURRENT_PY_VERSION",
-    "CURRENT_PY_VERSION_INFO",
+    "MAX_PY_VERSION",
+    "MAX_PY_VERSION_INFO",
     "NEXT_PY_UNSUPPORTED_MSG",
-    "NEXT_PY_VERSION",
-    "NEXT_PY_VERSION_INFO",
+    "NEXT_MAX_PY_VERSION",
+    "NEXT_MAX_PY_VERSION_INFO",
     "PYTHON_VERSION_INFO",
 ]
 
@@ -27,13 +27,13 @@ def _py_version_info(version: str) -> tuple[int, int]:
     return (int(major), int(minor))
 
 
-# CPython version currently being wired.
-CURRENT_PY_VERSION: str = "3.15"
-CURRENT_PY_VERSION_INFO: tuple[int, int] = _py_version_info(CURRENT_PY_VERSION)
+# Upper bound of CPythons we code against.
+MAX_PY_VERSION: str = "3.15"
+MAX_PY_VERSION_INFO: tuple[int, int] = _py_version_info(MAX_PY_VERSION)
 
-# First unsupported CPython (exclusive upper bound / fail-closed default).
-NEXT_PY_VERSION: str = "3.16"
-NEXT_PY_VERSION_INFO: tuple[int, int] = _py_version_info(NEXT_PY_VERSION)
+# First CPython past MAX (exclusive upper bound / fail-closed default).
+NEXT_MAX_PY_VERSION: str = "3.16"
+NEXT_MAX_PY_VERSION_INFO: tuple[int, int] = _py_version_info(NEXT_MAX_PY_VERSION)
 NEXT_PY_UNSUPPORTED_MSG: str = "This version of CPython is not supported yet: {}.{}".format(*sys.version_info[:2])
 
 

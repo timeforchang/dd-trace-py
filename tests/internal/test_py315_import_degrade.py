@@ -8,11 +8,11 @@ import re
 
 import pytest
 
-from ddtrace.internal.compat import CURRENT_PY_VERSION
-from ddtrace.internal.compat import CURRENT_PY_VERSION_INFO
+from ddtrace.internal.compat import MAX_PY_VERSION
+from ddtrace.internal.compat import MAX_PY_VERSION_INFO
+from ddtrace.internal.compat import NEXT_MAX_PY_VERSION
+from ddtrace.internal.compat import NEXT_MAX_PY_VERSION_INFO
 from ddtrace.internal.compat import NEXT_PY_UNSUPPORTED_MSG
-from ddtrace.internal.compat import NEXT_PY_VERSION
-from ddtrace.internal.compat import NEXT_PY_VERSION_INFO
 from ddtrace.internal.compat import PYTHON_VERSION_INFO
 
 
@@ -24,11 +24,11 @@ def test_unsupported_msg_includes_running_version():
     assert NEXT_PY_UNSUPPORTED_MSG == _UNSUPPORTED_MSG
 
 
-def test_current_and_next_py_version_constants():
-    assert CURRENT_PY_VERSION == "3.15"
-    assert CURRENT_PY_VERSION_INFO == (3, 15)
-    assert NEXT_PY_VERSION == "3.16"
-    assert NEXT_PY_VERSION_INFO == (3, 16)
+def test_max_and_next_max_py_version_constants():
+    assert MAX_PY_VERSION == "3.15"
+    assert MAX_PY_VERSION_INFO == (3, 15)
+    assert NEXT_MAX_PY_VERSION == "3.16"
+    assert NEXT_MAX_PY_VERSION_INFO == (3, 16)
 
 
 def test_wrapping_modules_import():
@@ -39,8 +39,8 @@ def test_wrapping_modules_import():
     import ddtrace.internal.wrapping.generators  # noqa: F401
 
 
-# TODO(py-315): replace CURRENT_PY_VERSION_INFO with NEXT_PY_VERSION after 3.15 GAs
-@pytest.mark.skipif(PYTHON_VERSION_INFO < CURRENT_PY_VERSION_INFO, reason=f"{CURRENT_PY_VERSION} wrap() degrade")
+# TODO(py-315): replace MAX_PY_VERSION_INFO with NEXT_MAX_PY_VERSION after 3.15 GAs
+@pytest.mark.skipif(PYTHON_VERSION_INFO < MAX_PY_VERSION_INFO, reason=f"{MAX_PY_VERSION} wrap() degrade")
 def test_wrap_raises_not_implemented_on_315():
     from ddtrace.internal.wrapping import wrap
 
@@ -54,8 +54,8 @@ def test_wrap_raises_not_implemented_on_315():
         wrap(f, wrapper)
 
 
-# TODO(py-315): replace CURRENT_PY_VERSION_INFO with NEXT_PY_VERSION after 3.15 GAs
-@pytest.mark.skipif(PYTHON_VERSION_INFO < CURRENT_PY_VERSION_INFO, reason=f"{CURRENT_PY_VERSION} lazy module degrade")
+# TODO(py-315): replace MAX_PY_VERSION_INFO with NEXT_MAX_PY_VERSION after 3.15 GAs
+@pytest.mark.skipif(PYTHON_VERSION_INFO < MAX_PY_VERSION_INFO, reason=f"{MAX_PY_VERSION} lazy module degrade")
 def test_lazy_module_decorator_without_bytecode_wrap():
     import tests.internal.lazy as lazy_module
 
@@ -72,9 +72,9 @@ def test_exec_lazy_init_without_source():
     assert module_globals["exported"] == 123
 
 
-# TODO(py-315): replace CURRENT_PY_VERSION_INFO with NEXT_PY_VERSION after 3.15 GAs
+# TODO(py-315): replace MAX_PY_VERSION_INFO with NEXT_MAX_PY_VERSION after 3.15 GAs
 @pytest.mark.skipif(
-    PYTHON_VERSION_INFO < CURRENT_PY_VERSION_INFO, reason=f"{CURRENT_PY_VERSION} debugging products degrade"
+    PYTHON_VERSION_INFO < MAX_PY_VERSION_INFO, reason=f"{MAX_PY_VERSION} debugging products degrade"
 )
 def test_debugging_products_load_without_failure():
     from ddtrace.internal.products import ProductManager
