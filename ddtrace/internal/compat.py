@@ -16,6 +16,7 @@ __all__ = [
     "NEXT_PY_UNSUPPORTED_MSG",
     "NEXT_MAX_PY_VERSION",
     "NEXT_MAX_PY_VERSION_INFO",
+    "PY_315_VERSION_INFO",
     "PY_GTE_MAX",
     "PY_GTE_NEXT_MAX",
     "PYTHON_VERSION_INFO",
@@ -37,6 +38,10 @@ MAX_PY_VERSION_INFO: tuple[int, int] = _py_version_info(MAX_PY_VERSION)
 NEXT_MAX_PY_VERSION: str = "3.16"
 NEXT_MAX_PY_VERSION_INFO: tuple[int, int] = _py_version_info(NEXT_MAX_PY_VERSION)
 NEXT_PY_UNSUPPORTED_MSG: str = "This version of CPython is not supported yet: {}.{}".format(*sys.version_info[:2])
+
+# CPython 3.15 introduced sys.monitoring PY_UNWIND / PEP 810 import packing.
+# Not MAX — do not bump this when MAX_PY_VERSION moves.
+PY_315_VERSION_INFO: tuple[int, int] = (3, 15)
 
 # Support / fail-closed predicates (not API/bytecode introduction floors).
 # TODO(py-315): compare to NEXT_MAX_PY_VERSION_INFO after 3.15 GAs
