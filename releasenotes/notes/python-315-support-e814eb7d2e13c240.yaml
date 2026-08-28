@@ -1,0 +1,4 @@
+---
+features:
+  - |
+    internal: Adds support for Python 3.15.
