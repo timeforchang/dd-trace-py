@@ -16,6 +16,7 @@ import bytecode
 from bytecode import Bytecode
 
 from ddtrace.internal.assembly import Assembly
+from ddtrace.internal.compat import PY_GTE_NEXT_MAX
 from ddtrace.internal.logger import get_logger
 from ddtrace.internal.threads import Lock
 from ddtrace.internal.threads import RLock
@@ -220,7 +221,7 @@ CONTEXT_HEAD = Assembly()
 CONTEXT_RETURN = Assembly()
 CONTEXT_FOOT = Assembly()
 
-if sys.version_info >= (3, 16):
+if PY_GTE_NEXT_MAX:
     raise NotImplementedError("This version of Python is not supported yet")
 elif sys.version_info >= (3, 15):
     # We rely on sys.monitoring for wrapping, so no bytecode manipulation is

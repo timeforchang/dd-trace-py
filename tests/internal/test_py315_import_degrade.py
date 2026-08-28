@@ -13,6 +13,8 @@ from ddtrace.internal.compat import MAX_PY_VERSION_INFO
 from ddtrace.internal.compat import NEXT_MAX_PY_VERSION
 from ddtrace.internal.compat import NEXT_MAX_PY_VERSION_INFO
 from ddtrace.internal.compat import NEXT_PY_UNSUPPORTED_MSG
+from ddtrace.internal.compat import PY_GTE_MAX
+from ddtrace.internal.compat import PY_GTE_NEXT_MAX
 from ddtrace.internal.compat import PYTHON_VERSION_INFO
 
 
@@ -29,6 +31,8 @@ def test_max_and_next_max_py_version_constants():
     assert MAX_PY_VERSION_INFO == (3, 15)
     assert NEXT_MAX_PY_VERSION == "3.16"
     assert NEXT_MAX_PY_VERSION_INFO == (3, 16)
+    assert PY_GTE_MAX == (PYTHON_VERSION_INFO >= MAX_PY_VERSION_INFO)
+    assert PY_GTE_NEXT_MAX == (PYTHON_VERSION_INFO >= NEXT_MAX_PY_VERSION_INFO)
 
 
 def test_wrapping_modules_import():
@@ -39,8 +43,7 @@ def test_wrapping_modules_import():
     import ddtrace.internal.wrapping.generators  # noqa: F401
 
 
-# TODO(py-315): replace MAX_PY_VERSION_INFO with NEXT_MAX_PY_VERSION after 3.15 GAs
-@pytest.mark.skipif(PYTHON_VERSION_INFO < MAX_PY_VERSION_INFO, reason=f"{MAX_PY_VERSION} wrap() degrade")
+@pytest.mark.skipif(not PY_GTE_MAX, reason=f"{MAX_PY_VERSION} wrap() degrade")
 def test_wrap_raises_not_implemented_on_315():
     from ddtrace.internal.wrapping import wrap
 
@@ -54,8 +57,7 @@ def test_wrap_raises_not_implemented_on_315():
         wrap(f, wrapper)
 
 
-# TODO(py-315): replace MAX_PY_VERSION_INFO with NEXT_MAX_PY_VERSION after 3.15 GAs
-@pytest.mark.skipif(PYTHON_VERSION_INFO < MAX_PY_VERSION_INFO, reason=f"{MAX_PY_VERSION} lazy module degrade")
+@pytest.mark.skipif(not PY_GTE_MAX, reason=f"{MAX_PY_VERSION} lazy module degrade")
 def test_lazy_module_decorator_without_bytecode_wrap():
     import tests.internal.lazy as lazy_module
 
@@ -72,10 +74,7 @@ def test_exec_lazy_init_without_source():
     assert module_globals["exported"] == 123
 
 
-# TODO(py-315): replace MAX_PY_VERSION_INFO with NEXT_MAX_PY_VERSION after 3.15 GAs
-@pytest.mark.skipif(
-    PYTHON_VERSION_INFO < MAX_PY_VERSION_INFO, reason=f"{MAX_PY_VERSION} debugging products degrade"
-)
+@pytest.mark.skipif(not PY_GTE_MAX, reason=f"{MAX_PY_VERSION} debugging products degrade")
 def test_debugging_products_load_without_failure():
     from ddtrace.internal.products import ProductManager
 

@@ -13,8 +13,8 @@ import bytecode as bc
 from bytecode import Instr
 
 from ddtrace.internal.assembly import Assembly
-from ddtrace.internal.compat import MAX_PY_VERSION_INFO
 from ddtrace.internal.compat import NEXT_PY_UNSUPPORTED_MSG
+from ddtrace.internal.compat import PY_GTE_MAX
 from ddtrace.internal.threads import Lock
 from ddtrace.internal.wrapping.asyncs import wrap_async
 from ddtrace.internal.wrapping.generators import wrap_generator
@@ -300,8 +300,7 @@ def wrap_bytecode(wrapper: Wrapper, wrapped: FunctionType) -> bc.Bytecode:
     return a coroutine function, and so on. The signature is also preserved to
     avoid breaking, e.g., usages of the ``inspect`` module.
     """
-    # TODO(py-315): replace MAX_PY_VERSION_INFO with NEXT_MAX_PY_VERSION after 3.15 GAs
-    if PY >= MAX_PY_VERSION_INFO:
+    if PY_GTE_MAX:
         raise NotImplementedError(NEXT_PY_UNSUPPORTED_MSG)
 
     code = wrapped.__code__
@@ -350,8 +349,7 @@ def wrap(f: FunctionType, wrapper: Wrapper) -> WrappedFunction:
     Note that this changes the behavior of the original function with the
     wrapper function, instead of creating a new function object.
     """
-    # TODO(py-315): replace MAX_PY_VERSION_INFO with NEXT_MAX_PY_VERSION after 3.15 GAs
-    if PY >= MAX_PY_VERSION_INFO:
+    if PY_GTE_MAX:
         raise NotImplementedError(NEXT_PY_UNSUPPORTED_MSG)
     wrapped = FunctionType(
         code := f.__code__,

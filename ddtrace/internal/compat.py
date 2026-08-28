@@ -16,6 +16,8 @@ __all__ = [
     "NEXT_PY_UNSUPPORTED_MSG",
     "NEXT_MAX_PY_VERSION",
     "NEXT_MAX_PY_VERSION_INFO",
+    "PY_GTE_MAX",
+    "PY_GTE_NEXT_MAX",
     "PYTHON_VERSION_INFO",
 ]
 
@@ -35,6 +37,11 @@ MAX_PY_VERSION_INFO: tuple[int, int] = _py_version_info(MAX_PY_VERSION)
 NEXT_MAX_PY_VERSION: str = "3.16"
 NEXT_MAX_PY_VERSION_INFO: tuple[int, int] = _py_version_info(NEXT_MAX_PY_VERSION)
 NEXT_PY_UNSUPPORTED_MSG: str = "This version of CPython is not supported yet: {}.{}".format(*sys.version_info[:2])
+
+# Support / fail-closed predicates (not API/bytecode introduction floors).
+# TODO(py-315): compare to NEXT_MAX_PY_VERSION_INFO after 3.15 GAs
+PY_GTE_MAX: bool = PYTHON_VERSION_INFO >= MAX_PY_VERSION_INFO
+PY_GTE_NEXT_MAX: bool = PYTHON_VERSION_INFO >= NEXT_MAX_PY_VERSION_INFO
 
 
 def ensure_text(s, encoding="utf-8", errors="ignore") -> str:
