@@ -13,6 +13,7 @@ from ddtrace.internal.compat import MAX_PY_VERSION_INFO
 from ddtrace.internal.compat import NEXT_MAX_PY_VERSION
 from ddtrace.internal.compat import NEXT_MAX_PY_VERSION_INFO
 from ddtrace.internal.compat import NEXT_PY_UNSUPPORTED_MSG
+from ddtrace.internal.compat import PY_315_VERSION_INFO
 from ddtrace.internal.compat import PY_GTE_MAX
 from ddtrace.internal.compat import PY_GTE_NEXT_MAX
 from ddtrace.internal.compat import PYTHON_VERSION_INFO
@@ -33,6 +34,11 @@ def test_max_and_next_max_py_version_constants():
     assert NEXT_MAX_PY_VERSION_INFO == (3, 16)
     assert PY_GTE_MAX == (PYTHON_VERSION_INFO >= MAX_PY_VERSION_INFO)
     assert PY_GTE_NEXT_MAX == (PYTHON_VERSION_INFO >= NEXT_MAX_PY_VERSION_INFO)
+
+
+def test_py315_api_floor_is_not_aliased_to_max():
+    assert PY_315_VERSION_INFO == (3, 15)
+    assert PY_315_VERSION_INFO is not MAX_PY_VERSION_INFO
 
 
 def test_wrapping_modules_import():
