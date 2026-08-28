@@ -75,8 +75,7 @@ def str_to_version(version: str) -> tuple[int, int]:
 
 MIN_PYTHON_VERSION = version_to_str(min(SUPPORTED_PYTHON_VERSIONS))
 # 3.15 is listed so select_pys(max_version="3.15") can opt in. Default stays
-# 3.14: 3.15 hashes share riot jobs with 3.9-3.14 under --exitfirst, wrap()
-# still raises (#17849), and pip install -e . fails until #19904.
+# 3.14: hashes share riot jobs under --exitfirst; pip install -e . until #19904.
 MAX_PYTHON_VERSION = "3.14"
 
 
