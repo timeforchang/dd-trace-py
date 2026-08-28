@@ -68,13 +68,23 @@ async def test_query_is_blocked_before_execution() -> None:
     cursor = mock.AsyncMock()
     traced_cursor = AIOTracedCursor(cursor, Pin())
 
-    for method in ("execute", "executemany"):
-        with mock.patch.object(core, "dispatch_event", side_effect=BlockingException) as dispatch_event:
-            with pytest.raises(BlockingException):
-                await getattr(traced_cursor, method)("SELECT 1")
+    for query in ("SELECT 1", b"SELECT 1"):
+        expected = BlockingException()
 
-        dispatch_event.assert_called_once_with(DbApiEvent(query="SELECT 1", span_name_prefix="mysql"))
-        getattr(cursor, method).assert_not_awaited()
+        def block(event: DbApiEvent) -> None:
+            assert event == DbApiEvent(query=query, span_name_prefix="mysql")
+            raise expected
+
+        for method in ("execute", "executemany"):
+            core.on(DbApiEvent.event_name, block)
+            try:
+                with pytest.raises(BlockingException) as exc_info:
+                    await getattr(traced_cursor, method)(query)
+            finally:
+                core.reset_listeners(DbApiEvent.event_name, block)
+
+            assert exc_info.value is expected
+            getattr(cursor, method).assert_not_awaited()
 
 
 @pytest.mark.asyncio

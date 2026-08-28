@@ -1,6 +1,9 @@
 import inspect
+from typing import Optional
+from typing import Union
 
 from ddtrace import config
+from ddtrace._trace.pin import Pin
 from ddtrace.contrib._events.dbapi import DbApiEvent
 from ddtrace.internal import core
 from ddtrace.internal.constants import COMPONENT
@@ -29,6 +32,27 @@ def get_version():
 
 
 class TracedAsyncCursor(TracedCursor):
+    def _prepare_dbapi_query(self, query: object) -> object:
+        has_listeners = core.has_listeners(DbApiEvent.event_name)
+        normalized_query: Optional[Union[str, bytes]] = None
+        if isinstance(query, (str, bytes)) or has_listeners:
+            should_normalize = True
+        else:
+            pin = Pin.get_from(self)
+            should_normalize = pin.enabled() if pin is not None else is_tracing_enabled()
+
+        if should_normalize:
+            try:
+                normalized_query = self._normalize_dbapi_query(query)
+            except Exception:
+                log.debug("Failed to normalize database query", exc_info=True)
+
+        resource = normalized_query if normalized_query is not None else query
+        self._self_last_execute_operation = resource
+        if has_listeners and normalized_query is not None:
+            core.dispatch_event(DbApiEvent(query=normalized_query, span_name_prefix=self._self_dbapi_span_name_prefix))
+        return resource
+
     async def __aenter__(self):
         # previous versions of the dbapi didn't support context managers. let's
         # reference the func that would be called to ensure that error
@@ -97,9 +121,7 @@ class TracedAsyncCursor(TracedCursor):
 
     async def executemany(self, query, *args, **kwargs):
         """Wraps the cursor.executemany method"""
-        self._self_last_execute_operation = query
-        if isinstance(query, str):
-            core.dispatch_event(DbApiEvent(query=query, span_name_prefix=self._self_dbapi_span_name_prefix))
+        resource = self._prepare_dbapi_query(query)
         # Always return the result as-is
         # DEV: Some libraries return `None`, others `int`, and others the cursor objects
         #      These differences should be overridden at the integration specific layer (e.g. in `sqlite3/patch.py`)
@@ -108,7 +130,7 @@ class TracedAsyncCursor(TracedCursor):
         return await self._trace_method(
             self.__wrapped__.executemany,
             self._self_datadog_name,
-            query,
+            resource,
             {"sql.executemany": "true"},
             self._self_dbm_propagator,
             query,
@@ -118,9 +140,7 @@ class TracedAsyncCursor(TracedCursor):
 
     async def execute(self, query, *args, **kwargs):
         """Wraps the cursor.execute method"""
-        self._self_last_execute_operation = query
-        if isinstance(query, str):
-            core.dispatch_event(DbApiEvent(query=query, span_name_prefix=self._self_dbapi_span_name_prefix))
+        resource = self._prepare_dbapi_query(query)
 
         # Always return the result as-is
         # DEV: Some libraries return `None`, others `int`, and others the cursor objects
@@ -128,7 +148,7 @@ class TracedAsyncCursor(TracedCursor):
         return await self._trace_method(
             self.__wrapped__.execute,
             self._self_datadog_name,
-            query,
+            resource,
             {},
             self._self_dbm_propagator,
             query,
