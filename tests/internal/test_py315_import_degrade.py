@@ -25,10 +25,10 @@ def test_unsupported_msg_includes_running_version():
 
 
 def test_max_and_next_max_py_version_constants():
-    assert MAX_PY_VERSION == "3.15"
-    assert MAX_PY_VERSION_INFO == (3, 15)
+    assert MAX_PY_VERSION == "3.14"
+    assert MAX_PY_VERSION_INFO == (3, 14)
     assert NEXT_MAX_PY_VERSION_INFO == (MAX_PY_VERSION_INFO[0], MAX_PY_VERSION_INFO[1] + 1)
-    assert NEXT_MAX_PY_VERSION_INFO == (3, 16)
+    assert NEXT_MAX_PY_VERSION_INFO == (3, 15)
 
 
 def test_py315_api_floor_is_not_aliased_to_max():
@@ -44,7 +44,7 @@ def test_wrapping_modules_import():
     import ddtrace.internal.wrapping.generators  # noqa: F401
 
 
-@pytest.mark.skipif(PYTHON_VERSION_INFO < MAX_PY_VERSION_INFO, reason=f"{MAX_PY_VERSION} wrap() degrade")
+@pytest.mark.skipif(PYTHON_VERSION_INFO < NEXT_MAX_PY_VERSION_INFO, reason="NEXT_MAX wrap() degrade")
 def test_wrap_raises_not_implemented_on_315():
     from ddtrace.internal.wrapping import wrap
 
@@ -58,7 +58,7 @@ def test_wrap_raises_not_implemented_on_315():
         wrap(f, wrapper)
 
 
-@pytest.mark.skipif(PYTHON_VERSION_INFO < MAX_PY_VERSION_INFO, reason=f"{MAX_PY_VERSION} lazy module degrade")
+@pytest.mark.skipif(PYTHON_VERSION_INFO < NEXT_MAX_PY_VERSION_INFO, reason="NEXT_MAX lazy module degrade")
 def test_lazy_module_decorator_without_bytecode_wrap():
     import tests.internal.lazy as lazy_module
 
@@ -75,7 +75,7 @@ def test_exec_lazy_init_without_source():
     assert module_globals["exported"] == 123
 
 
-@pytest.mark.skipif(PYTHON_VERSION_INFO < MAX_PY_VERSION_INFO, reason=f"{MAX_PY_VERSION} debugging products degrade")
+@pytest.mark.skipif(PYTHON_VERSION_INFO < NEXT_MAX_PY_VERSION_INFO, reason="NEXT_MAX debugging products degrade")
 def test_debugging_products_load_without_failure():
     from ddtrace.internal.products import ProductManager
 
