@@ -27,12 +27,12 @@ def _py_version_info(version: str) -> tuple[int, int]:
     return (int(major), int(minor))
 
 
-# Upper bound of CPythons we code against.
-# TODO(py-315): compare to NEXT_MAX after 3.15 GAs
-MAX_PY_VERSION: str = "3.15"
+# Last officially supported CPython. Matches requires-python <3.15.
+# TODO(py-315): bump MAX_PY_VERSION to 3.15 after 3.15 GAs
+MAX_PY_VERSION: str = "3.14"
 MAX_PY_VERSION_INFO: tuple[int, int] = _py_version_info(MAX_PY_VERSION)
 
-# Exclusive upper bound / fail-closed default — derived from MAX.
+# First unsupported / fail-closed default — derived from MAX.
 NEXT_MAX_PY_VERSION_INFO: tuple[int, int] = (MAX_PY_VERSION_INFO[0], MAX_PY_VERSION_INFO[1] + 1)
 NEXT_PY_UNSUPPORTED_MSG: str = "This version of CPython is not supported yet: {}.{}".format(*sys.version_info[:2])
 
