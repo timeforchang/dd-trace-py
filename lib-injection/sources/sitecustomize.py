@@ -40,13 +40,12 @@ def parse_version(version):
 
 TELEMETRY_DATA = []
 SCRIPT_DIR = os.path.dirname(__file__)
-# Exclusive upper bound. Keep 3.16 so 3.15 is injected (#19843). Not NEXT_MAX in
-# compat (3.15 until 3.15 GAs). This bootstrap cannot import ddtrace.
-NEXT_MAX_PY_VERSION_INFO = (3, 16)
+# Exclusive upper bound. Keep 3.16 so 3.15 is injected (#19843). Not NEXT_MAX_PY
+# in compat (3.15 until 3.15 GAs). This bootstrap cannot import ddtrace.
 RUNTIMES_ALLOW_LIST = {
     "cpython": {
         "min": Version(version=(3, 9), constraint=""),
-        "max": Version(version=NEXT_MAX_PY_VERSION_INFO, constraint=""),
+        "max": Version(version=(3, 16), constraint=""),
     }
 }
 

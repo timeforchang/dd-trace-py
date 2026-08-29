@@ -11,33 +11,27 @@ import wrapt
 
 __all__ = [
     "maybe_stringify",
+    "MAX_PY",
     "MAX_PY_VERSION",
-    "MAX_PY_VERSION_INFO",
     "NEXT_PY_UNSUPPORTED_MSG",
-    "NEXT_MAX_PY_VERSION_INFO",
+    "NEXT_MAX_PY",
     "PY_315_VERSION_INFO",
     "PYTHON_VERSION_INFO",
 ]
 
 PYTHON_VERSION_INFO = sys.version_info
 
-
-def _py_version_info(version: str) -> tuple[int, int]:
-    major, minor = version.split(".")[:2]
-    return (int(major), int(minor))
-
-
 # Last officially supported CPython. Matches requires-python <3.15.
-# TODO(py-315): bump MAX_PY_VERSION to 3.15 after 3.15 GAs
-MAX_PY_VERSION: str = "3.14"
-MAX_PY_VERSION_INFO: tuple[int, int] = _py_version_info(MAX_PY_VERSION)
+# TODO(py-315): bump MAX_PY to (3, 15) after 3.15 GAs
+MAX_PY: tuple[int, int] = (3, 14)
+MAX_PY_VERSION: str = f"{MAX_PY[0]}.{MAX_PY[1]}"
 
-# First unsupported / fail-closed default — derived from MAX.
-NEXT_MAX_PY_VERSION_INFO: tuple[int, int] = (MAX_PY_VERSION_INFO[0], MAX_PY_VERSION_INFO[1] + 1)
+# First unsupported / fail-closed default — derived from MAX_PY.
+NEXT_MAX_PY: tuple[int, int] = (MAX_PY[0], MAX_PY[1] + 1)
 NEXT_PY_UNSUPPORTED_MSG: str = "This version of CPython is not supported yet: {}.{}".format(*sys.version_info[:2])
 
 # CPython 3.15 introduced sys.monitoring PY_UNWIND / PEP 810 import packing.
-# Not MAX — do not bump this when MAX_PY_VERSION moves.
+# Not MAX_PY — do not bump this when MAX_PY moves.
 PY_315_VERSION_INFO: tuple[int, int] = (3, 15)
 
 

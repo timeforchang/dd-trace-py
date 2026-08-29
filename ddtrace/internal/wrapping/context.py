@@ -222,7 +222,7 @@ CONTEXT_RETURN = Assembly()
 CONTEXT_FOOT = Assembly()
 
 # Hard 3.16 floor: wrapping already works on 3.15 via sys.monitoring.
-# NEXT_MAX is 3.15 until 3.15 GAs; using it here would skip that path.
+# NEXT_MAX_PY is 3.15 until 3.15 GAs; using it here would skip that path.
 if sys.version_info >= (3, 16):
     raise NotImplementedError("This version of Python is not supported yet")
 elif sys.version_info >= PY_315_VERSION_INFO:
