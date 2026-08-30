@@ -207,17 +207,38 @@ def _suite_profiler_samples(tmpdir: str) -> dict[str, Any]:
     except FileNotFoundError as exc:
         result["error"] = f"No pprof file written to {output_filename}.*: {exc}"
     except ImportError as exc:
-        # zstandard or protobuf not installed — degrade to file-existence check
         import glob as _glob
 
         files: list[str] = _glob.glob(pprof_prefix + "*.pprof")
-        result["pprof_written"] = bool(files)
-        result["passed"] = result["pprof_written"]
-        result["pprof_parse_skipped"] = True
-        result["pprof_parse_skip_reason"] = (
-            f"{exc}. Install zstandard and protobuf in the test venv for full validation."
-        )
+        _fail_unparsed_pprof(result, files, exc)
 
+    return result
+
+
+def _fail_unparsed_pprof(
+    result: dict[str, Any],
+    pprof_files: list[str],
+    parse_exc: BaseException,
+) -> dict[str, Any]:
+    """Fail when pprof cannot be parsed — wall-sample contract is unchecked.
+
+    File existence alone is not a pass. Missing files or missing
+    zstandard/protobuf must not report success.
+    """
+    result["pprof_written"] = bool(pprof_files)
+    result["pprof_parse_skipped"] = True
+    result["passed"] = False
+    if not pprof_files:
+        result["error"] = (
+            f"No pprof file written and profile parse unavailable ({parse_exc}). "
+            "Wall-time sample contract not met. Install zstandard and protobuf."
+        )
+    else:
+        result["error"] = (
+            f"pprof written but content not validated ({parse_exc}). "
+            "Wall-time sample contract not checked. Install zstandard and protobuf."
+        )
+    result["pprof_parse_skip_reason"] = result["error"]
     return result
 
 

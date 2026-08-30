@@ -170,8 +170,10 @@ fi
 RIOT_PYTHON="$(cd "$REPO_ROOT" && python3 -m riot list -p "$PYTHON_VERSION" --hash-only "^profile\$" 2>/dev/null | tr '\n' ' ')"
 RIOT_MEMALLOC="$(cd "$REPO_ROOT" && python3 -m riot list -p "$PYTHON_VERSION" --hash-only "^profile-memalloc\$" 2>/dev/null | tr '\n' ' ')"
 
+missing_venvs=0
 if [[ -z "$RIOT_PYTHON" ]]; then
-    echo "WARNING: No 'profile' riot venvs found for Python $PYTHON_VERSION. Skipping." >&2
+    echo "ERROR: No 'profile' riot venvs found for Python $PYTHON_VERSION." >&2
+    missing_venvs=1
 else
     echo "--- Running profile suites: $RIOT_PYTHON---"
     # shellcheck disable=SC2086
@@ -185,7 +187,8 @@ else
 fi
 
 if [[ -z "$RIOT_MEMALLOC" ]]; then
-    echo "WARNING: No 'profile-memalloc' riot venvs found for Python $PYTHON_VERSION. Skipping." >&2
+    echo "ERROR: No 'profile-memalloc' riot venvs found for Python $PYTHON_VERSION." >&2
+    missing_venvs=1
 else
     echo "--- Running profile-memalloc suites: $RIOT_MEMALLOC---"
     VENV_ARGS=""
@@ -195,6 +198,11 @@ else
     # shellcheck disable=SC2086
     "$SCRIPTS_DIR/run-tests" $VENV_ARGS
     echo ""
+fi
+
+if [[ "$missing_venvs" -ne 0 ]]; then
+    echo "ERROR: required riot venvs/tests missing." >&2
+    exit 1
 fi
 
 echo "profile-uwsgi: SKIPPED (capped at Python 3.13 — uwsgi not yet 3.15-compatible)"
