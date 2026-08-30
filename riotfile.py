@@ -75,7 +75,8 @@ def str_to_version(version: str) -> tuple[int, int]:
 
 MIN_PYTHON_VERSION = version_to_str(min(SUPPORTED_PYTHON_VERSIONS))
 # 3.15 is listed so select_pys(max_version="3.15") can opt in. Default stays
-# 3.14: hashes share riot jobs under --exitfirst; pip install -e . until #19904.
+# 3.14 so uncapped suites do not mix 3.15 hashes into 3.9-3.14 --exitfirst jobs.
+# Wrap-heavy suites stay at the default until wrap() is live on 3.15.
 MAX_PYTHON_VERSION = "3.14"
 
 
@@ -580,7 +581,7 @@ venv = Venv(
         ),
         Venv(
             name="detect_global_locks",
-            pys=select_pys(max_version="3.15"),
+            pys=select_pys(),
             command="python -X importtime scripts/global-lock-detection.py",
             env={
                 "DD_TRACE_PY_ENABLE_ITR_FOR_JOB": "false",
@@ -860,7 +861,7 @@ venv = Venv(
             pkgs={
                 "pytest-randomly": latest,
             },
-            pys=select_pys(max_version="3.15"),
+            pys=select_pys(),
         ),
         Venv(
             name="logging",
@@ -2791,7 +2792,7 @@ venv = Venv(
             pkgs={
                 "pytest-randomly": latest,
             },
-            pys=select_pys(max_version="3.15"),
+            pys=select_pys(),
             env={
                 "DD_CIVISIBILITY_ITR_ENABLED": "0",
                 "DD_IAST_REQUEST_SAMPLING": "100",  # Override default 30% to analyze all IAST requests
@@ -3698,7 +3699,7 @@ venv = Venv(
             pkgs={
                 "pytest-randomly": latest,
             },
-            pys=select_pys(max_version="3.15"),
+            pys=select_pys(),
         ),
         Venv(
             name="integration_registry",
