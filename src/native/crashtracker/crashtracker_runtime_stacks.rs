@@ -15,21 +15,13 @@ extern "C" {
     fn fcntl(fd: c_int, cmd: c_int, arg: c_int) -> c_int;
 }
 
-// PyGILState_Check lives in CPython's cpython/pystate.h, not the limited API.
-// pyo3-ffi therefore omits it under Py_LIMITED_API (3.15+ via
-// PYO3_USE_ABI3_FORWARD_COMPATIBILITY). The symbol is exported from libpython
-// since 3.4; declare it locally so this module builds either way.
-extern "C" {
-    fn PyGILState_Check() -> c_int;
-}
-
 /// Check whether the current thread holds the GIL.
 /// This is signal-safe: it's just a thread-local read + comparison.
 /// Returns false if the GIL is not held (e.g. during a ctypes foreign function call),
 /// in which case it's unsafe to call any Python C API functions.
 #[cfg(unix)]
 unsafe fn gil_is_held() -> bool {
-    PyGILState_Check() != 0
+    pyo3_ffi::PyGILState_Check() != 0
 }
 
 /************************************************************
