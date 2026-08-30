@@ -35,14 +35,16 @@ Current status
      - Notes
    * - 3.13
      - Supported
-     - Last stable release fully supported across all profiler surfaces.
+     - Supported. Not the current ``requires-python`` upper bound.
    * - 3.14
-     - Merged (`PR #15546`__)
-     - Echion frame/task/asyncio, ``setup.py`` un-gating, Riot venv splits, tests done.
+     - Supported (`PR #15546`__)
+     - Last version in ``requires-python`` (``>=3.9,<3.15``). Echion
+       frame/task/asyncio, ``setup.py`` un-gating, Riot venv splits, tests done.
    * - 3.15
      - In review (`PR #19267`__–`PR #19273`__)
-     - Five-PR profiling stack (peripheral → native → collectors/CI →
-       asyncio ``sys.monitoring`` → dev tooling). Echion:
+     - Profiling stack (peripheral → native → collectors/CI →
+       asyncio ``sys.monitoring`` → test install subdir ``#19947`` →
+       dev tooling). Echion:
        ``FRAME_OWNED_BY_CSTACK`` removed; ``PyFrameState`` renumbered;
        ``FRAME_SUSPENDED_YIELD_FROM_LOCKED`` added for free-threaded builds.
        ``_asyncio.py``: ``sys.monitoring`` PY_RETURN path gated at 3.15 because

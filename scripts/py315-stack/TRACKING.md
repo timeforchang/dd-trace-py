@@ -1,10 +1,10 @@
 # Python 3.15 — follow-up tracking (post-split)
 
-Tracks work **outside** the 5-PR profiling stack ([`PROFILING_STACK.md`](PROFILING_STACK.md))
+Tracks work **outside** the profiling stack ([`PROFILING_STACK.md`](PROFILING_STACK.md))
 that is still needed for full py3.15 parity. Core profiling code lives in
-#19267 → #19269 → #19270 → #19272 → #19273.
+#19267 → #19269 → #19270 → #19272 → #19947 → #19273.
 
-**Last updated:** 2026-08-27
+**Last updated:** 2026-08-29
 
 ## Status summary
 
@@ -15,7 +15,7 @@ that is still needed for full py3.15 parity. Core profiling code lives in
 | GAP-03 | Dev tooling + runbook | P2 | **#19273** (this layer) | Stack tip |
 | GAP-04 | `test_uwsgi.py` type-ignore cleanup | P3 | **Won't fix** | mypy requires the ignores |
 
-### Follow-ups (outside the 5-PR stack)
+### Follow-ups (outside the profiling stack)
 
 GAP-01 / GAP-02 stay off this chain. #19273 is stack tip (GAP-03).
 
@@ -60,9 +60,10 @@ GAP-01 / GAP-02 stay off this chain. #19273 is stack tip (GAP-03).
 
 ## Stack hygiene
 
-Live stack is the five PRs in [`PROFILING_STACK.md`](PROFILING_STACK.md).
+Live stack is the six PRs in [`PROFILING_STACK.md`](PROFILING_STACK.md)
+(#19861 ← #19267 ← #19269 ← #19270 ← #19272 ← #19947 ← #19273).
 Do **not** retarget [#17849](https://github.com/DataDog/dd-trace-py/pull/17849) onto this stack.
-`DRAFT_PRS.md` / `rebuild-stack.sh` still describe the older 14-PR chain (historical).
+Do **not** open `vlad/315-official-support`.
 
 ---
 

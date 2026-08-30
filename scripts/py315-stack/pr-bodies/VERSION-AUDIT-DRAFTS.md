@@ -1,6 +1,6 @@
 # Paste-ready PR body corrections (version-claim audit)
 
-Do **not** `gh pr edit`. Paste locally. Stack order: #19267 → #19269 → #19270 → #19272 → #19273 → #19254.
+Do **not** `gh pr edit`. Paste locally. Stack order: #19861 ← #19267 ← #19269 ← #19270 ← #19272 ← #19947 ← #19273. Not #19254.
 
 Diff each PR against its parent in the stack, not `origin/main`.
 

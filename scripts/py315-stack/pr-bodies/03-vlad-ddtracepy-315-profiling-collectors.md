@@ -2,9 +2,11 @@
 
 ## Summary
 
-Python collector updates for 3.15 and riotfile/CI matrix wiring. Lifts remaining `setup.py` native-build skips to `< (3, 16)` so 3.15 wheels compile the ABI from #19269.
+Collector updates and 3.15 riot/CI matrix. Does not lift requires-python.
+
 
 ## Test plan
 
-- [ ] Native extensions compile on 3.15
+- [ ] CI green on this branch
 - [ ] Stack merges cleanly into the next PR's base branch
+

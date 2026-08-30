@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Open GitHub compare URLs to create draft PRs in stack order (1→14).
+# Open GitHub compare URLs to create draft PRs in stack order (1→6).
 # Skips entries that already have a PR number in pr-numbers.env.
+# Does not open official-support or empty historical slots.
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -9,12 +10,13 @@ source "$DIR/pr-numbers.env"
 
 "$DIR/generate-pr-urls.sh" >/dev/null
 
+STACK_MAX=6
 opened=0
-for i in $(seq 1 14); do
+for i in $(seq 1 "$STACK_MAX"); do
   var="PR${i}"
   num="${!var:-}"
   if [[ -n "$num" ]]; then
-    echo "SKIP ${i}/14 — PR #${num} already exists"
+    echo "SKIP ${i}/${STACK_MAX} — PR #${num} already exists"
     continue
   fi
   url_file="${DIR}/pr-bodies/$(printf '%02d' "$i")-compare.url"
@@ -23,7 +25,7 @@ for i in $(seq 1 14); do
     continue
   fi
   url="$(cat "$url_file")"
-  echo "OPEN ${i}/14 — ${url}"
+  echo "OPEN ${i}/${STACK_MAX} — ${url}"
   if command -v open >/dev/null 2>&1; then
     open "$url"
     opened=$((opened + 1))

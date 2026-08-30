@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Generate GitHub compare URLs + PR bodies with prev/next navigation for the py3.15 stack.
+# Generate GitHub compare URLs + PR bodies for the live profiling-315 stack.
 # EMU blocks `gh pr create`; use open-all-draft-prs.sh or compare URLs in DRAFT_PRS.md.
+# Does not emit official-support or empty historical slots.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -10,7 +11,7 @@ ENV_FILE="$(dirname "$0")/pr-numbers.env"
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 
-STACK_MAX=14
+STACK_MAX=6
 REPO="DataDog/dd-trace-py"
 BASE_URL="https://github.com/${REPO}"
 
@@ -46,7 +47,7 @@ nav_line() {
       prev="_#${prev_n} (pending)_"
     fi
   else
-    prev="—"
+    prev="[#19861](${BASE_URL}/pull/19861)"
   fi
 
   if [[ $next_n -le $STACK_MAX ]]; then
@@ -129,20 +130,12 @@ EOF
 
 # idx|head|base|title|summary|action_note (optional, use · for empty)
 ENTRIES=(
-  "1|gab/315-monitoring-multiplexer|main|feat(internal): sys.monitoring multiplexer for Python 3.15 (split 1/14)|Introduces \`ddtrace.internal.monitoring\` — shared \`sys.monitoring\` multiplexer (Gab). Split from #17849.|·"
-  "2|chore/315-wrapping-context|gab/315-monitoring-multiplexer|chore(wrapping): Python 3.15 wrapping context support (split 2/14)|Wrapping context + bytecode_injection for 3.15 (Gab + await/send fix).|Retarget existing **#17849** to base \`gab/315-monitoring-multiplexer\`."
-  "3|vlad/315-ci-matrix|gab/315-wrapping-context|ci(py3.15): add 3.15 to riot matrix with gated suites (split 3/14)|Riotfile 3.15, docker testrunner, suite gating.|·"
-  "4|vlad/315-ci-autoregen-lockfiles|vlad/315-ci-matrix|ci: auto-commit regenerated riot lockfiles on PR branches (split 4/14)|Self-healing lockfile drift on PR branches.|·"
-  "5|vlad/315-peripheral-compat|vlad/315-ci-autoregen-lockfiles|fix(py3.15): peripheral compat for profiling, logging, appsec (split 5/14)|Graceful degradation + test skips outside wrapping core.|Replaces merged **#19255** (wrong integration-branch base)."
-  "6|vlad/profiling-native-test-install-subdir|vlad/315-peripheral-compat|chore(profiling): native test install subdirs (PROF-14200) (split 6/14)|INSTALL_SUBDIR for py3.15 native tests.|Replaces merged **#19257**."
-  "7|vlad/ddtracepy-315-profiling-native|vlad/profiling-native-test-install-subdir|chore(profiling): native C++/Rust py3.15 ABI support (split 7/14)|Native profiling py3.15 ABI (Echion frame state, cmake).|Replaces merged **#19250**."
-  "8|vlad/ddtracepy-315-profiling-collectors|vlad/ddtracepy-315-profiling-native|chore(profiling): update Python profiling collectors for py3.15 (split 8/14)|Collector updates for 3.15.|Replaces merged **#19251**."
-  "9|vlad/ddtracepy-315-profiling-only|vlad/ddtracepy-315-profiling-collectors|ci(profiling): wire py3.15 into build matrix and CI (split 9/14)|Profiling CI matrix and setup.py gating.|Replaces merged **#19249**."
-  "10|vlad/ddtracepy-315-profiling-asyncio-monitoring|vlad/ddtracepy-315-profiling-only|refactor(profiling): sys.monitoring asyncio path for py3.15 (split 10/14)|Replace bytecode wrapping with \`sys.monitoring\` in \`_asyncio.py\`.|Replaces merged **#19256**."
-  "11|vlad/315-profiling-dev-tooling|vlad/ddtracepy-315-profiling-asyncio-monitoring|docs(profiling): py3.15 dev tooling and CPython upgrade runbook (split 11/14)|Profiling bring-up scripts, compatibility baselines, Echion migration runbook (GAP-03).|Replaces merged **#19260**."
-  "12|vlad/315-lib-injection-ssi|vlad/315-profiling-dev-tooling|chore(py-315): enable lib-injection SSI for Python 3.15 (split 12/14)|SSI allow-list + wheel download for 3.15 auto-instrumentation (GAP-01). Closes #17813.|Replaces merged **#19258**."
-  "13|vlad/315-profiling-release-note|vlad/315-lib-injection-ssi|docs(releasenotes): profiling Python 3.15 support note (split 13/14)|Customer-facing Reno fragment for profiling on 3.15 (GAP-02).|Replaces merged **#19259**."
-  "14|vlad/315-official-support|vlad/315-profiling-release-note|chore(py3.15): declare official 3.15 support in packaging (split 14/14)|pyproject.toml, requirements.csv, riot lockfiles. **Stack tip — merges last.**|·"
+  "1|vlad/315-peripheral-compat|vlad/py315-manylinux-wheels|chore(profiling-315): logging version warning and FunctionStore restore|Peripheral compat on #19861: version warning + FunctionStore restore_all unwrap.|·"
+  "2|vlad/ddtracepy-315-profiling-native|vlad/315-peripheral-compat|chore(profiling-315): native py3.15 ABI and test install subdirs|Native C++/Rust 3.15 ABI. INSTALL_SUBDIR extract is #19947, not this layer.|·"
+  "3|vlad/ddtracepy-315-profiling-collectors|vlad/ddtracepy-315-profiling-native|chore(profiling-315): collectors and py3.15 CI matrix|Collector updates and 3.15 riot/CI matrix. Does not lift requires-python.|·"
+  "4|vlad/ddtracepy-315-profiling-asyncio-monitoring|vlad/ddtracepy-315-profiling-collectors|refactor(profiling-315): sys.monitoring asyncio path for py3.15|Replace bytecode wrapping with sys.monitoring in _asyncio.py when wrapping is unavailable.|·"
+  "5|vlad/315-profiling-test-install-subdir|vlad/ddtracepy-315-profiling-asyncio-monitoring|chore(profiling-315): install 3.15 gtest in test/py315|Install 3.15 gtest under test/py315. Does not declare official 3.15 support.|·"
+  "6|vlad/315-profiling-dev-tooling|vlad/315-profiling-test-install-subdir|docs(profiling-315): py3.15 dev tooling and CPython upgrade runbook|Bring-up scripts, compatibility baselines, Echion migration runbook. Docs/scripts only; does not declare official 3.15 support.|·"
 )
 
 OUT_DIR="$(dirname "$0")/pr-bodies"
@@ -150,10 +143,13 @@ mkdir -p "$OUT_DIR"
 INDEX="$(dirname "$0")/DRAFT_PRS.md"
 
 {
-  echo "# Python 3.15 stack — draft PRs (1–14)"
+  echo "# Python 3.15 profiling stack — draft PRs (6)"
+  echo ""
+  echo "Live chain: #19861 ← #19267 ← #19269 ← #19270 ← #19272 ← #19947 ← #19273."
+  echo "Do **not** open \`vlad/315-official-support\` or declare official 3.15 support from these scripts."
   echo ""
   echo "EMU blocks \`gh pr create\` / \`gh pr edit\`. Run [\`sync-pr-numbers.sh\`](sync-pr-numbers.sh) then [\`open-all-draft-prs.sh\`](open-all-draft-prs.sh)."
-  echo "Set numbers: \`./sync-pr-numbers.sh PR1=19250 PR6=19255 ...\` (preserves existing, fills gaps from GitHub)."
+  echo "Set numbers: \`./sync-pr-numbers.sh PR1=19267 PR2=19269 ...\` (preserves existing, fills gaps from GitHub)."
   echo ""
 } > "$INDEX"
 
@@ -165,13 +161,10 @@ for entry in "${ENTRIES[@]}"; do
 
   test_plan="- [ ] CI green on this branch
 - [ ] Stack merges cleanly into the next PR's base branch"
-  case "$idx" in
-    12) test_plan="- [ ] \`scripts/run-profiling-tests --check-only\` passes on 3.15 (when available)
-- [ ] Docs build / link check" ;;
-    13) test_plan="- [ ] lib-injection CI green" ;;
-    14) test_plan="- [ ] \`riot run reno\` validates fragment
-- [ ] Merge with PR that lifts profiling native gate for 3.15" ;;
-  esac
+  if [[ "$idx" == "6" ]]; then
+    test_plan="- [ ] \`scripts/run-profiling-tests --check-only\` on a version that has the required venvs
+- [ ] Docs build / link check"
+  fi
 
   write_pr_entry "$idx" "$STACK_MAX" "$head" "$base" "$title" "$summary" "$action_note" "$test_plan"
 done

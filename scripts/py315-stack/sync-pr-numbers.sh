@@ -4,7 +4,7 @@
 #
 # Usage:
 #   ./sync-pr-numbers.sh              # sync empty slots from GitHub
-#   ./sync-pr-numbers.sh PR6=19250    # set PR6 then sync + regenerate
+#   ./sync-pr-numbers.sh PR1=19267    # set PR1 then sync + regenerate
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -28,20 +28,12 @@ for arg in "$@"; do
 done
 
 declare -a BRANCHES=(
-  "PR1|gab/315-monitoring-multiplexer"
-  "PR2|chore/315-wrapping-context"
-  "PR3|vlad/315-ci-matrix"
-  "PR4|vlad/315-ci-autoregen-lockfiles"
-  "PR5|vlad/315-official-support"
-  "PR6|vlad/315-peripheral-compat"
-  "PR7|vlad/profiling-native-test-install-subdir"
-  "PR8|vlad/ddtracepy-315-profiling-native"
-  "PR9|vlad/ddtracepy-315-profiling-collectors"
-  "PR10|vlad/ddtracepy-315-profiling-only"
-  "PR11|vlad/ddtracepy-315-profiling-asyncio-monitoring"
-  "PR12|vlad/315-profiling-dev-tooling"
-  "PR13|vlad/315-lib-injection-ssi"
-  "PR14|vlad/315-profiling-release-note"
+  "PR1|vlad/315-peripheral-compat"
+  "PR2|vlad/ddtracepy-315-profiling-native"
+  "PR3|vlad/ddtracepy-315-profiling-collectors"
+  "PR4|vlad/ddtracepy-315-profiling-asyncio-monitoring"
+  "PR5|vlad/315-profiling-test-install-subdir"
+  "PR6|vlad/315-profiling-dev-tooling"
 )
 
 lookup_pr() {
@@ -51,7 +43,9 @@ lookup_pr() {
 
 TMP="$(mktemp)"
 {
-  echo "# PR numbers for stack navigation. ./sync-pr-numbers.sh [PRn=num ...] then regenerates bodies."
+  echo "# Profiling stack (6 PRs) on #19861. ./sync-pr-numbers.sh [PRn=num ...] then regenerates bodies."
+  echo "# Floor (not a slot): 19861 vlad/py315-manylinux-wheels"
+  echo "# Not this stack: 17849 wrap, 19254 official-support, riot 19880–19906"
 } > "$TMP"
 
 for entry in "${BRANCHES[@]}"; do
@@ -61,9 +55,6 @@ for entry in "${BRANCHES[@]}"; do
 
   if [[ -z "$num" ]]; then
     num="$(lookup_pr "$branch")"
-    if [[ -z "$num" && "$key" == "PR2" ]]; then
-      num="$(lookup_pr "gab/315-wrapping-context")"
-    fi
   fi
 
   echo "${key}=${num}" >> "$TMP"

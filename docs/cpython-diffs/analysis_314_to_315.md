@@ -116,22 +116,29 @@ Key changes:
 
 ### 4. `_PyFrame_SafeGetCode()` and `_PyFrame_SafeGetLasti()` — `pycore_interpframe.h`
 
-New in 3.15, **explicitly designed for profilers and debuggers**:
+Not new in 3.15. Both helpers exist on CPython 3.14 (`Include/internal/pycore_interpframe.h`;
+[gh-140815](https://github.com/python/cpython/issues/140815) / [GH-140921](https://github.com/python/cpython/issues/140981)
+3.14 backport). CPython documents them as heuristic helpers for `dump_frame()` in
+`Python/traceback.c` (faulthandler): return NULL / `-1` if the frame looks invalid or
+freed; **not 100% reliable**.
 
 ```c
-// Returns NULL if frame is invalid or freed (heuristic, not 100% reliable)
+// Similar to _PyFrame_GetCode(), but return NULL if the frame is invalid or
+// freed. Used by dump_frame() in Python/traceback.c. The function uses
+// heuristics to detect freed memory, it's not 100% reliable.
 static inline PyCodeObject* _Py_NO_SANITIZE_THREAD
 _PyFrame_SafeGetCode(_PyInterpreterFrame *f);
 
-// Returns -1 if frame is invalid or freed
+// Similar to PyUnstable_InterpreterFrame_GetLasti(), but return -1 if the
+// frame is invalid or freed.
 static inline int _Py_NO_SANITIZE_THREAD
 _PyFrame_SafeGetLasti(struct _PyInterpreterFrame *f);
 ```
 
-**Recommendation:** Under `#if PY_VERSION_HEX >= 0x030f0000`, use
-`_PyFrame_SafeGetCode()` instead of `_PyFrame_GetCode()` in echion's frame-reading
-path. It checks for freed memory (globals/builtins NULL, `_PyMem_IsPtrFreed`,
-`_PyObject_IsFreed`, `PyCode_Check`) before dereferencing.
+**Recommendation:** Available since 3.14 (`#if PY_VERSION_HEX >= 0x030e0000`).
+Optional for echion's frame-reading path instead of `_PyFrame_GetCode()`. It checks
+for freed memory (globals/builtins NULL, `_PyMem_IsPtrFreed`, `_PyObject_IsFreed`,
+`PyCode_Check`) before dereferencing. Not a 3.15-only profiler API.
 
 ---
 
@@ -218,10 +225,10 @@ raw offset, regenerate offsets.
 - [ ] Consider using `base_frame` sentinel for frame-chain termination.
 - [x] Update asyncio debug symbol lookup: `_AsyncioDebug` → `_Py_AsyncioDebug`.
       → Not applicable: echion does not look up the asyncio debug symbol by name.
-- [x] Update CI/build matrix: add `cp315-*` wheels, Python 3.15 test variants.
-      → Done: `pyproject.toml`, `riotfile.py`, `.gitlab/package.yml`,
-        `.gitlab/testrunner.yml`, `.gitlab/templates/build-base-venvs.yml`,
-        `.gitlab/templates/detect-global-locks.yml`, `.gitlab/multi-os-tests.yml`,
-        `.gitlab-ci.yml`, `.github/workflows/generate-package-versions.yml`,
-        `.github/workflows/generate-supported-versions.yml`.
+- [ ] Official 3.15 packaging / supported-versions CI.
+      → Not done. `pyproject.toml` is still `requires-python = ">=3.9,<3.15"`.
+        `.github/workflows/generate-supported-versions.yml` still stops at 3.14.
+        Those land on a later official-support PR, not this stack.
+- [ ] CI/build matrix: `cp315-*` wheels and Python 3.15 test variants.
+      → In review on this stack (#19270 riot/gitlab). Not official support.
 - [ ] Run echion test suite against a CPython 3.15 build and confirm green.
