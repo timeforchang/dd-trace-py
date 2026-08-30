@@ -1,10 +1,9 @@
-"""Python 3.15 import-time degrade: wrapping must load, wrap() still raises.
+"""Python 3.15 import-time degrade: wrapping must load.
 
 Products that import wrapping (e.g. ModuleWatchdog) must not crash the process.
-wrap() still fail-closes with NotImplementedError when actually used.
+Monitoring ``inject_hook`` already works on 3.15; this module does not assert
+that wrap() raises.
 """
-
-import re
 
 import pytest
 
@@ -42,20 +41,6 @@ def test_wrapping_modules_import():
     import ddtrace.internal.wrapping.asyncs  # noqa: F401
     import ddtrace.internal.wrapping.context  # noqa: F401
     import ddtrace.internal.wrapping.generators  # noqa: F401
-
-
-@pytest.mark.skipif(PYTHON_VERSION_INFO < NEXT_MAX_PY, reason="NEXT_MAX_PY wrap() degrade")
-def test_wrap_raises_not_implemented_on_315():
-    from ddtrace.internal.wrapping import wrap
-
-    def f() -> None:
-        return None
-
-    def wrapper(wrapped, args, kwargs):  # noqa: ANN001, ANN202
-        return wrapped(*args, **kwargs)
-
-    with pytest.raises(NotImplementedError, match=re.escape(_UNSUPPORTED_MSG)):
-        wrap(f, wrapper)
 
 
 @pytest.mark.skipif(PYTHON_VERSION_INFO < NEXT_MAX_PY, reason="NEXT_MAX_PY lazy module degrade")
