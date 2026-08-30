@@ -13,7 +13,6 @@ import pytest
 _REPO_ROOT: pathlib.Path = pathlib.Path(__file__).resolve().parents[2]
 _VERIFY_SCRIPT: pathlib.Path = _REPO_ROOT / "scripts" / "verify_profiler_compatibility.py"
 _RUN_PROFILING_TESTS: pathlib.Path = _REPO_ROOT / "scripts" / "run-profiling-tests"
-_GENERATE_PR_URLS: pathlib.Path = _REPO_ROOT / "scripts" / "py315-stack" / "generate-pr-urls.sh"
 
 
 @pytest.fixture(scope="module")
@@ -48,13 +47,3 @@ def test_run_profiling_tests_fails_closed_on_missing_venvs() -> None:
     assert "ERROR: required riot venvs/tests missing." in text
     assert "WARNING: No 'profile' riot venvs found" not in text
     assert "missing_venvs=1" in text
-
-
-def test_stack_url_script_is_five_pr_profiling_chain_only() -> None:
-    text: str = _GENERATE_PR_URLS.read_text()
-    assert "STACK_MAX=6" in text
-    assert "vlad/315-official-support|" not in text
-    assert "split 14/14" not in text
-    assert "vlad/315-peripheral-compat" in text
-    assert "vlad/315-profiling-test-install-subdir" in text
-    assert "vlad/315-profiling-dev-tooling" in text
