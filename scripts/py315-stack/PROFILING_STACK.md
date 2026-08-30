@@ -1,6 +1,8 @@
 # Python 3.15 profiling stack (6 PRs)
 
-**Vintage:** Sun 2026-08-30 07:02 EDT (−0400). Live `gh pr view` tips. #19267 base is #19861 (`vlad/py315-manylinux-wheels`), **not** `main`. Not merge-ready.
+**Vintage:** Sun 2026-08-30 12:45 EDT (−0400). Live `gh pr view` tips. #19267 base is #19861 (`vlad/py315-manylinux-wheels`), **not** `main`. Not merge-ready.
+
+This map is the **profiling deep-test** stack (DoE attach: #19269 / #19270 / #19272). The unofficial mega is the **herd/unblock** parent ([#19861](https://github.com/DataDog/dd-trace-py/pull/19861)), not in-scope for DoE attach.
 
 Live chain: **#19861 ← #19267 ← #19269 ← #19270 ← #19272 ← #19947 ← #19273**.
 
