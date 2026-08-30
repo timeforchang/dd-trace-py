@@ -26,7 +26,8 @@ PYTHON_VERSION_INFO = sys.version_info
 MAX_PY: tuple[int, int] = (3, 14)
 MAX_PY_VERSION: str = f"{MAX_PY[0]}.{MAX_PY[1]}"
 
-# First unsupported / fail-closed default — derived from MAX_PY.
+# First unsupported CPython for packaging (last-supported+1). wrap() fail-closes
+# at (3, 16), not here.
 NEXT_MAX_PY: tuple[int, int] = (MAX_PY[0], MAX_PY[1] + 1)
 NEXT_PY_UNSUPPORTED_MSG: str = "This version of CPython is not supported yet: {}.{}".format(*sys.version_info[:2])
 
